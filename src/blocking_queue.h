@@ -28,6 +28,7 @@ public:
     m_cv_queue_overflow.notify_all();
   }
 
+  // can throw std::bad_alloc
   void add(const T& element)
   {
     //    std::shared_lock lock{ consumers_mtx };
@@ -39,6 +40,7 @@ public:
     m_cv_queue_empty.notify_all();
   }
 
+  // can throw std::bad_alloc
   void add(T&& element)
   {
     std::unique_lock lock{ consumers_mtx };
@@ -58,6 +60,11 @@ public:
     m_data.pop();
     m_cv_queue_overflow.notify_all();
     return n;
+  }
+
+  bool empty() const{
+    std::unique_lock lock{ consumers_mtx };
+    return m_data.empty();
   }
 
 private:
