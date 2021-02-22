@@ -11,6 +11,7 @@ target_link_libraries(
         ${PROJECT_NAME}
         gtest_main
         queue_lib
+        gmock
         benchmark::benchmark
 )
 
@@ -23,6 +24,7 @@ target_link_libraries(
         benchmarks
         queue_lib
         gtest_main
+        gmock
         benchmark::benchmark
 )
 
