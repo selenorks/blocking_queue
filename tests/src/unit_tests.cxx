@@ -43,8 +43,8 @@ protected:
 TEST_P(SingleBoundedBlockingQueue, ReaderLock)
 {
   size_t max_size = std::get<0>(GetParam());
-  size_t element_count = get<1>(GetParam());
-  bool sync = get<2>(GetParam());
+  size_t element_count = std::get<1>(GetParam());
+  bool sync = std::get<2>(GetParam());
 
   BoundedBlockingQueue<int> test(max_size);
 

@@ -23,9 +23,6 @@ public:
 
   ~BoundedBlockingQueue()
   {
-    m_is_stopped = true;
-    m_cv_queue_empty.notify_all();
-    m_cv_queue_overflow.notify_all();
   }
 
   // can throw std::bad_alloc
@@ -72,8 +69,6 @@ private:
   std::shared_mutex consumers_mtx;
 
   std::queue<T> m_data;
-//  std::vector
   std::condition_variable_any m_cv_queue_empty;
   std::condition_variable_any m_cv_queue_overflow;
-  bool m_is_stopped = false;
 };
