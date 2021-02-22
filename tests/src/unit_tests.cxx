@@ -205,3 +205,73 @@ TEST(MultiThread, BoundedBlockingQueue)
 
   EXPECT_THAT(data, ::testing::ContainerEq(grabbed_data));
 }
+
+template<typename T>
+class Container
+{
+public:
+  Container(size_t max_capacity = 256) {
+    if(max_capacity % 2 != 0)
+    {
+      throw std::invalid_argument("buffer size is not a power of 2");
+    }
+    m_data.resize(max_capacity);
+  }
+
+  void add(const T& element)
+  {
+    m_size++;
+    uint16_t pos = end_pos++ % m_data.size();
+    get(pos) = element;
+  }
+
+  T take()
+  {
+    m_size--;
+    uint16_t pos = start_pos++ % m_data.size();
+    return get(pos % m_data.size());
+  }
+
+  bool empty() const { return size() == 0; }
+  size_t size() const { return m_size; }
+
+private:
+  int16_t size_mask() const { return m_data.size()-1;}
+  T& get(int pos) { return *((T*)&(m_data[pos].block)); }
+  struct DataBlock
+  {
+    uint8_t block[sizeof(T)];
+  };
+
+  std::vector<DataBlock> m_data;
+  uint16_t start_pos = 0;
+  uint16_t end_pos = 0;
+  uint16_t m_size = 0;
+};
+
+TEST(CIRCULAR, BoundedBlockingQueue)
+{
+  Container<uint32_t> container(16);
+
+  uint32_t add_counter = 0;
+  uint32_t take_counter = 0;
+
+  for (int j = 0; j < std::numeric_limits<int>::max(); j++) {
+
+    for (int i = 0; i < 16; i++) {
+      container.add(add_counter++);
+    }
+
+    for (int i = 0; i < 6; i++) {
+      EXPECT_EQ(container.take(), take_counter++);
+      container.add(add_counter++);
+    }
+
+    EXPECT_EQ(container.size(), 16);
+
+    for (int i = 0; i < 16; i++) {
+      EXPECT_EQ(container.take(), take_counter++);
+    }
+    EXPECT_EQ(container.empty(), true);
+  }
+}

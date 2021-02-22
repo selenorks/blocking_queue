@@ -11,6 +11,11 @@
 #include <shared_mutex>
 #include <thread>
 
+/**
+ * Thread safe queue for writing and reading objects T from multiple threads
+ * Queue should be destroyed after all readers and writers are finished
+ * @tparam T
+ */
 template<typename T>
 class BoundedBlockingQueue
 {
@@ -18,14 +23,18 @@ public:
   BoundedBlockingQueue(size_t max_capacity = 255)
       : m_max_capacity(max_capacity)
   {
-    //    m_data.resize(max_capacity);
+
   }
 
   ~BoundedBlockingQueue()
   {
   }
 
-  // can throw std::bad_alloc
+  /**
+ *
+ * @param element - new elemenent for inserting to queue
+ * can throw std::bad_alloc
+ */
   void add(const T& element)
   {
     //    std::shared_lock lock{ consumers_mtx };
@@ -37,7 +46,11 @@ public:
     m_cv_queue_empty.notify_all();
   }
 
-  // can throw std::bad_alloc
+  /**
+   *
+   * @param element - new elemenent for inserting to queue
+   * can throw std::bad_alloc
+   */
   void add(T&& element)
   {
     std::unique_lock lock{ consumers_mtx };
@@ -47,7 +60,10 @@ public:
     lock.unlock();
     m_cv_queue_empty.notify_all();
   }
-
+/**
+ * thread safe method
+ * @return object T from queue, if queue is empty, wait a new object
+ */
   T take()
   {
     std::unique_lock lock{ consumers_mtx };
