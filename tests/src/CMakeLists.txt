@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(unit_tests)
 
+include_directories(../../benchmark/googletest/googlemock/include)
 add_executable(
         ${PROJECT_NAME}
         unit_tests.cxx
@@ -9,10 +10,9 @@ add_executable(
 
 target_link_libraries(
         ${PROJECT_NAME}
-        gtest_main
         queue_lib
-        gmock
         benchmark::benchmark
+        gtest_main
 )
 
 add_executable(
@@ -24,13 +24,12 @@ target_link_libraries(
         benchmarks
         queue_lib
         gtest_main
-        gmock
         benchmark::benchmark
 )
 
 add_test(
         NAME
-            multi_queue_unit_tests
+            queue_unit_tests
         COMMAND
             $<TARGET_FILE:unit_tests>
 )
