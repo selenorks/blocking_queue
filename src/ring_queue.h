@@ -40,7 +40,10 @@ public:
    */
   bool add(T&& element) noexcept
   {
-    std::unique_lock lock(m_data_mutex);
+    std::unique_lock lock(m_data_mutex, std::defer_lock);
+    if (!lock.try_lock())
+      return false;
+
     if (full())
       return false;
 
@@ -56,7 +59,10 @@ public:
    */
   bool add(const T& element) noexcept
   {
-    std::unique_lock lock(m_data_mutex);
+    std::unique_lock lock(m_data_mutex, std::defer_lock);
+    if (!lock.try_lock())
+      return false;
+
     if (full())
       return false;
 
@@ -70,7 +76,10 @@ public:
    */
   std::optional<T> take() noexcept
   {
-    std::unique_lock lock(m_data_mutex);
+    std::unique_lock lock(m_data_mutex, std::defer_lock);
+    if (!lock.try_lock())
+      return {};
+
     if (empty())
       return {};
 
@@ -99,7 +108,7 @@ public:
     m_end_pos = 0;
   }
 
-//  size_t capacity() const { return m_capacity; }
+  //  size_t capacity() const { return m_capacity; }
 
 private:
   T& get(index_t index) noexcept { return *((T*)&(m_data[index].blocks)); }
