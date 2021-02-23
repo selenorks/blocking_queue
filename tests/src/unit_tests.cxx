@@ -8,6 +8,8 @@
 #include <vector>
 
 #include <blocking_queue.h>
+#include <ring_queue.h>
+
 auto sort_int = [](int i, int j) { return i < j; };
 
 TEST(SimpleAddTake, BoundedBlockingQueue)
@@ -206,8 +208,9 @@ TEST(MultiThread, BoundedBlockingQueue)
 
 TEST(RingQueue, BoundedBlockingQueue)
 {
-  RingQueue<uint32_t> ring(16);
+  RingQueue<uint32_t, 16> ring;
 
+  ring.init();
   uint32_t add_counter = 0;
   uint32_t take_counter = 0;
 
@@ -222,11 +225,95 @@ TEST(RingQueue, BoundedBlockingQueue)
       ring.add(add_counter++);
     }
 
-    EXPECT_EQ(ring.size(), 16);
+    EXPECT_EQ(ring.full(), true);
+    EXPECT_EQ(ring.add(10), false);
 
-    for (int i = 0; i < 16; i++) {
+    EXPECT_EQ(ring.take(), take_counter++);
+
+    for (int i = 1; i < 16; i++) {
+      EXPECT_EQ(ring.full(), false);
       EXPECT_EQ(ring.take(), take_counter++);
     }
+    EXPECT_EQ(ring.full(), false);
     EXPECT_EQ(ring.empty(), true);
+
+    EXPECT_EQ(ring.take(), std::optional<uint16_t>());
+  }
+}
+
+TEST(MultiThread, RingQueue)
+{
+  constexpr int max_size = 8;
+  int element_count = 1024*1024;
+  int producer_count = 4;
+  int consumer_count = 5;
+
+  RingQueue<int, max_size> queue;
+  EXPECT_EQ(queue.init(), true);
+
+  auto producer = [&](int begin, int end) {
+    for (; begin < end; begin++) {
+      while (!queue.add(begin));
+    }
+  };
+
+  std::vector<std::thread*> producer_workers;
+  producer_workers.resize(producer_count);
+  int producer_chunk_size = element_count / producer_count;
+  for (int i = 0; i < producer_count; i++) {
+    int begin = producer_chunk_size * i;
+
+    int end = producer_chunk_size * (i + 1);
+    if ((producer_count - 1) == i)
+      end = element_count;
+    producer_workers[i] = new std::thread(producer, begin, end);
+  }
+
+  std::vector<int> grabbed_data;
+  std::mutex grabbed_data_mutex;
+  auto consumer = [&](int chunk_size) {
+    std::vector<int> data;
+    while (chunk_size--) {
+      while (true)
+      {
+        auto r = queue.take();
+        if(r.has_value())
+        {
+          data.push_back(r.value());
+          break;
+        }
+      }
+
+    }
+
+    std::unique_lock lock(grabbed_data_mutex);
+    grabbed_data.insert(grabbed_data.end(), data.begin(), data.end());
+  };
+
+  int consumer_chunk_size = element_count / producer_count;
+  std::vector<std::thread*> consumer_workers;
+  consumer_workers.resize(consumer_count);
+  for (int i = 0; i < consumer_count; i++) {
+    int chunk_size = consumer_chunk_size;
+    if ((consumer_count - 1) == i)
+      chunk_size = element_count - consumer_chunk_size * i;
+    consumer_workers[i] = new std::thread(consumer, chunk_size);
+  }
+
+  for (auto p : producer_workers) {
+    p->join();
+    delete p;
+  }
+
+  for (auto c : consumer_workers) {
+    c->join();
+    delete c;
+  }
+
+  std::sort(grabbed_data.begin(), grabbed_data.end(), sort_int);
+
+  EXPECT_EQ(element_count, grabbed_data.size());
+  for (int i = 0; i < element_count; i++) {
+    EXPECT_EQ(i, grabbed_data[i]);
   }
 }

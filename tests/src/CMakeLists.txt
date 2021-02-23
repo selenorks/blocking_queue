@@ -15,21 +15,28 @@ target_link_libraries(
         gtest_main
 )
 
+add_test(
+        NAME
+            unit_tests
+        COMMAND
+            $<TARGET_FILE:unit_tests>
+)
+
 add_executable(
-        benchmarks
-        benchmarks.cxx
+        compilation_test
+        compilation_test.cxx
 )
 
 target_link_libraries(
-        benchmarks
+        compilation_test
         queue_lib
-        gtest_main
-        benchmark::benchmark
 )
+
+target_compile_options(compilation_test PRIVATE -fno-rtti -fno-exceptions)
 
 add_test(
         NAME
-            queue_unit_tests
+            compilation_test
         COMMAND
-            $<TARGET_FILE:unit_tests>
+            $<TARGET_FILE:compilation_test>
 )

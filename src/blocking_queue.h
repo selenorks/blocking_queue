@@ -15,67 +15,83 @@ template<typename T>
 class BoundedBlockingQueue
 {
 public:
-  BoundedBlockingQueue(size_t max_capacity = 256)
-      : m_max_capacity(max_capacity), m_data(max_capacity)
-  {
+  BoundedBlockingQueue(size_t capacity = 256)
+      : m_capacity(capacity)
+  {}
 
-  }
-
-  ~BoundedBlockingQueue()
-  {
-  }
+  ~BoundedBlockingQueue() {}
 
   /**
-   *
-   * @param element - new elemenent for inserting to queue
+   * add will blocked until operation will be finished
+   * @param element - new element for inserting to queue
    * can throw std::bad_alloc
    */
   void add(const T& element)
   {
-    //    std::shared_lock lock{ consumers_mtx };
-    std::unique_lock lock{ consumers_mtx };
-    m_cv_queue_overflow.wait(lock, [&]() { return m_data.size() < m_max_capacity; });
+    {
+      std::unique_lock lock{ m_consumers_mtx };
+      m_cv_queue_overflow.wait(lock, [&]() { return size() < m_capacity; });
 
-    m_data.push(element);
-    lock.unlock();
+      m_data.push(element);
+    }
     m_cv_queue_empty.notify_all();
   }
 
-  // can throw std::bad_alloc
+  /**
+   * add will blocked until operation will be finished
+   * @param element - new elemenent for inserting to queue
+   * can throw std::bad_alloc
+   */
   void add(T&& element)
   {
-    std::unique_lock lock{ consumers_mtx };
-    m_cv_queue_overflow.wait(lock, [&]() { return m_data.size() < m_max_capacity; });
+    std::unique_lock lock{ m_consumers_mtx };
+    m_cv_queue_overflow.wait(lock, [&]() { return !full(); });
 
-    m_data.push(std::move(element));
+    m_data.add(std::move(element));
     lock.unlock();
     m_cv_queue_empty.notify_all();
   }
+
   /**
    * thread safe method
    * @return object T from queue, if queue is empty, wait a new object
    */
   T take()
   {
-    std::unique_lock lock{ consumers_mtx };
+    std::unique_lock lock{ m_consumers_mtx };
     m_cv_queue_empty.wait(lock, [&]() { return !m_data.empty(); });
 
-    const T el = m_data.take();
+    const T el = m_data.front();
     m_data.pop();
     m_cv_queue_overflow.notify_all();
-    return n;
+    return el;
   }
 
-  bool empty() const{
-    std::unique_lock lock{ consumers_mtx };
+  bool empty() const
+  {
+    std::unique_lock lock{ m_consumers_mtx };
     return m_data.empty();
   }
 
-private:
-  size_t m_max_capacity;
-  std::shared_mutex consumers_mtx;
+  bool full() const
+  {
+    std::unique_lock lock{ m_consumers_mtx };
+    return m_data.size() == m_capacity;
+  }
 
-  std::queue<T> m_data;
+  size_t size() const
+  {
+    std::unique_lock lock{ m_consumers_mtx };
+    return m_data.size();
+  }
+
+  size_t capacity() const { return m_capacity; }
+
+private:
+  const size_t m_capacity;
+  mutable std::recursive_mutex m_consumers_mtx;
+
   std::condition_variable_any m_cv_queue_empty;
   std::condition_variable_any m_cv_queue_overflow;
+  std::queue<T> m_data;
 };
