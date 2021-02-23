@@ -22,22 +22,17 @@ class BoundedBlockingQueue
 public:
   BoundedBlockingQueue(size_t max_capacity = 255)
       : m_max_capacity(max_capacity)
-  {
+  {}
 
-  }
-
-  ~BoundedBlockingQueue()
-  {
-  }
+  ~BoundedBlockingQueue() {}
 
   /**
- *
- * @param element - new elemenent for inserting to queue
- * can throw std::bad_alloc
- */
+   *
+   * @param element - new elemenent for inserting to queue
+   * can throw std::bad_alloc
+   */
   void add(const T& element)
   {
-    //    std::shared_lock lock{ consumers_mtx };
     std::unique_lock lock{ consumers_mtx };
     m_cv_queue_overflow.wait(lock, [&]() { return m_data.size() < m_max_capacity; });
 
@@ -60,16 +55,16 @@ public:
     lock.unlock();
     m_cv_queue_empty.notify_all();
   }
-/**
- * thread safe method
- * @return object T from queue, if queue is empty, wait a new object
- */
+  /**
+   * thread safe method
+   * @return object T from queue, if queue is empty, wait a new object
+   */
   T take()
   {
     std::unique_lock lock{ consumers_mtx };
     m_cv_queue_empty.wait(lock, [&]() { return !m_data.empty(); });
 
-    const T& el = m_data.front();
+    const T el = m_data.front();
     m_data.pop();
     lock.unlock();
 
@@ -77,7 +72,8 @@ public:
     return el;
   }
 
-  bool empty() const{
+  bool empty() const
+  {
     std::unique_lock lock{ consumers_mtx };
     return m_data.empty();
   }

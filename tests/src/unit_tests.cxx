@@ -141,20 +141,15 @@ TEST(QueueOverflow, BoundedBlockingQueue)
 TEST(MultiThread, BoundedBlockingQueue)
 {
   int max_size = 8;
-  int element_count = 64;
+  int element_count = 1024 * 1024;
   int producer_count = 4;
   int consumer_count = 5;
 
   BoundedBlockingQueue<int> queue(max_size);
 
-  std::vector<int> data;
-  data.resize(element_count);
-  for (int i = 0; i < element_count; i++)
-    data[i] = i;
-
   auto producer = [&](int begin, int end) {
     for (; begin < end; begin++) {
-      queue.add(data[begin]);
+      queue.add(begin);
     }
   };
 
@@ -203,5 +198,8 @@ TEST(MultiThread, BoundedBlockingQueue)
 
   std::sort(grabbed_data.begin(), grabbed_data.end(), sort_int);
 
-  EXPECT_THAT(data, ::testing::ContainerEq(grabbed_data));
+  EXPECT_EQ(element_count, grabbed_data.size());
+  for (int i = 0; i < element_count; i++) {
+    EXPECT_EQ(i, grabbed_data[i]);
+  }
 }
