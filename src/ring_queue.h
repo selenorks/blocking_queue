@@ -60,15 +60,13 @@ public:
    */
   bool add(const T& element) noexcept
   {
-    std::unique_lock lock(m_data_mutex, std::defer_lock);
-    if (!lock.try_lock())
-      return false;
+    std::unique_lock lock(m_data_mutex);
 
     if (full())
       return false;
 
     index_t pos = m_end_pos++ & m_mask;
-    new(get(pos)) T(element);
+    new (get(pos)) T(element);
     return true;
   }
   /**
@@ -77,18 +75,16 @@ public:
    */
   std::optional<T> take() noexcept
   {
-    std::unique_lock lock(m_data_mutex, std::defer_lock);
-    if (!lock.try_lock())
-      return {};
+    std::unique_lock lock(m_data_mutex);
 
     if (empty())
       return {};
 
     index_t pos = m_start_pos++ & m_mask;
     T* obj = get(pos);
-    std::optional<T> v{ std::move(*obj)};
+    T v{ std::move(*obj) };
     obj->~T();
-    return std::move(v);
+    return {std::move(v)};
   }
 
   bool empty() const noexcept

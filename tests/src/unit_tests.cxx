@@ -316,62 +316,156 @@ TEST(MultiThread, RingQueue)
   }
 }
 
-class TestInt
+class TestObject
 {
 public:
-  TestInt(int n)
+  TestObject(int n)
       : n(n)
   {
+    constructor_counter++;
     printf("%d Test()\n", n);
   }
-  TestInt(const TestInt& other)
+  TestObject(const TestObject& other)
   {
+    copy_counter++;
+
     this->n = other.n;
-    printf("%d TestInt(const TestInt& other)\n", n);
+    printf("%d TestObject(const TestObject& other)\n", n);
   }
-  TestInt(TestInt&& other)
+  TestObject(TestObject&& other)
   {
+    move_counter++;
     this->n = other.n;
     other.n = -1;
 
-    printf("%d TestInt(const TestInt&& other) \n", n);
+    printf("%d TestObject(const TestObject&& other) \n", n);
   }
-  TestInt& operator=(TestInt&& other)
+  //  TestObject& operator=(TestObject&& other)
+  //  {
+  //    this->n = other.n;
+  //    other.n = -1;
+  //    printf("%d operator=(TestObject&& other)\n", n);
+  //    return *this;
+  //  }
+  ~TestObject()
   {
-    this->n = other.n;
-    other.n = -1;
-    printf("%d operator=(TestInt&& other)\n", n);
-    return *this;
+    destructor_counter++;
+    printf("%d ~Test()\n", n);
   }
-  ~TestInt() { printf("%d ~Test()\n", n); }
+
+  static void reset_counters()
+  {
+    constructor_counter = 0;
+    destructor_counter = 0;
+    copy_counter = 0;
+    move_counter = 0;
+    printf("-------\n");
+  }
 
 private:
   int n = 0;
+
+public:
+  static int constructor_counter;
+  static int destructor_counter;
+  static int copy_counter;
+  static int move_counter;
 };
 
-TEST(Copy, RingQueue)
+int TestObject::constructor_counter = 0;
+int TestObject::destructor_counter = 0;
+int TestObject::copy_counter = 0;
+int TestObject::move_counter = 0;
+
+TEST(CheckConstructors, RingQueue)
 {
-  BoundedBlockingQueue<TestInt> queue;
+
+  TestObject::reset_counters();
   {
-    TestInt a(1);
-    queue.add(std::move(a));
+    RingQueue<TestObject, 8> queue;
+    queue.init();
+
+    {
+      {
+        TestObject a(1);
+        printf("-------\n");
+
+        EXPECT_EQ(TestObject::constructor_counter, 1);
+        EXPECT_EQ(TestObject::destructor_counter, 0);
+        EXPECT_EQ(TestObject::copy_counter, 0);
+        EXPECT_EQ(TestObject::move_counter, 0);
+        TestObject::reset_counters();
+        printf("move\n");
+
+        queue.add(std::move(a));
+
+        EXPECT_EQ(TestObject::constructor_counter, 0);
+        EXPECT_EQ(TestObject::destructor_counter, 0);
+        EXPECT_EQ(TestObject::copy_counter, 0);
+        EXPECT_EQ(TestObject::move_counter, 1);
+      }
+      TestObject::reset_counters();
+
+      printf("take\n");
+      const auto& v = queue.take();
+      printf("-------\n");
+
+      EXPECT_EQ(TestObject::constructor_counter, 0);
+      EXPECT_EQ(TestObject::destructor_counter, 2);
+      EXPECT_EQ(TestObject::copy_counter, 0);
+      EXPECT_EQ(TestObject::move_counter, 2);
+
+      TestObject::reset_counters();
+    }
+
+    // queue should destroy object `a` inside
+    EXPECT_EQ(TestObject::constructor_counter, 0);
+    EXPECT_EQ(TestObject::destructor_counter, 1);
+    EXPECT_EQ(TestObject::copy_counter, 0);
+    EXPECT_EQ(TestObject::move_counter, 0);
+  }
+}
+
+TEST(CheckConstructors, BoundedBlockingQueue)
+{
+  {
+    BoundedBlockingQueue<TestObject> queue;
+    {
+      TestObject a(1);
+      TestObject::reset_counters();
+      queue.add(std::move(a));
+
+      EXPECT_EQ(TestObject::constructor_counter, 0);
+      EXPECT_EQ(TestObject::destructor_counter, 0);
+      EXPECT_EQ(TestObject::copy_counter, 0);
+      EXPECT_EQ(TestObject::move_counter, 1);
+    }
+
+    TestObject::reset_counters();
+    {
+      const TestObject& obj = queue.take();
+
+      EXPECT_EQ(TestObject::constructor_counter, 0);
+      EXPECT_EQ(TestObject::destructor_counter, 1);
+      EXPECT_EQ(TestObject::copy_counter, 0);
+      EXPECT_EQ(TestObject::move_counter, 1);
+    }
+
+    {
+      TestObject b(1);
+      TestObject::reset_counters();
+      queue.add(b);
+      EXPECT_EQ(TestObject::constructor_counter, 0);
+      EXPECT_EQ(TestObject::destructor_counter, 0);
+      EXPECT_EQ(TestObject::copy_counter, 1);
+      EXPECT_EQ(TestObject::move_counter, 0);
+    }
+
+    TestObject::reset_counters();
   }
 
-  printf("-------\n");
-  const TestInt& obj= queue.take();
-  printf("-------\n");
-
-//  RingQueue<TestInt, 8> queue;
-//  queue.init();
-//
-//  TestInt a(1);
-//  //  , b(2);
-//  queue.add(std::move(a));
-//  printf("-------\n");
-//  auto v = queue.take();
-//  printf("-------\n");
-//  v.reset();
-//  queue.add(a);
-  //    queue.add(b);
-  //  TestInt b = std::move(a);
+  EXPECT_EQ(TestObject::constructor_counter, 0);
+  EXPECT_EQ(TestObject::destructor_counter, 1);
+  EXPECT_EQ(TestObject::copy_counter, 0);
+  EXPECT_EQ(TestObject::move_counter, 0);
 }
