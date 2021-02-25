@@ -210,19 +210,19 @@ TEST(RingQueue, BoundedBlockingQueue)
 {
   RingQueue<uint32_t, 16> ring;
 
-  ring.init();
+  EXPECT_EQ(ring.init(), true);
   uint32_t add_counter = 0;
   uint32_t take_counter = 0;
 
   for (int j = 0; j < std::numeric_limits<int16_t>::max(); j++) {
 
     for (int i = 0; i < 16; i++) {
-      ring.add(add_counter++);
+      EXPECT_EQ(ring.add(add_counter++), true);
     }
 
     for (int i = 0; i < 6; i++) {
       EXPECT_EQ(ring.take(), take_counter++);
-      ring.add(add_counter++);
+      EXPECT_EQ(ring.add(add_counter++), true);
     }
 
     EXPECT_EQ(ring.full(), true);
@@ -385,7 +385,7 @@ TEST(CheckConstructors, RingQueue)
   TestObject::reset_counters();
   {
     RingQueue<TestObject, 8> queue;
-    queue.init();
+    EXPECT_EQ(queue.init(), true);
 
     {
       {
@@ -399,7 +399,7 @@ TEST(CheckConstructors, RingQueue)
         TestObject::reset_counters();
         printf("move\n");
 
-        queue.add(std::move(a));
+        EXPECT_EQ(queue.add(std::move(a)), true);
 
         EXPECT_EQ(TestObject::constructor_counter, 0);
         EXPECT_EQ(TestObject::destructor_counter, 0);

@@ -33,7 +33,7 @@ public:
    * The function must be called once before using the queue
    * @return false if queue is failed to allocate buffer
    */
-  bool init() noexcept
+  [[nodiscard]] bool init() noexcept
   {
     m_data.reset(new (std::nothrow) ElementBlock[SIZE]);
 
@@ -48,7 +48,7 @@ public:
    * @param element
    * @return true if the element is added to the queue
    */
-  bool add(T&& element) noexcept
+  [[nodiscard]] bool add(T&& element) noexcept
   {
     std::unique_lock lock(m_data_mutex);
 
@@ -65,7 +65,7 @@ public:
    * @param element
    * @return true if the element is added to the queue
    */
-  bool add(const T& element) noexcept
+  [[nodiscard]] bool add(const T& element) noexcept
   {
     std::unique_lock lock(m_data_mutex);
 
