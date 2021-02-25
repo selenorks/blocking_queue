@@ -55,7 +55,7 @@ public:
     std::unique_lock lock{ m_consumers_mtx };
     m_cv_queue_overflow.wait(lock, [&]() { return !full(); });
 
-    m_data.push(std::move(element));
+    m_data.push(std::forward<T>(element));
     lock.unlock();
     m_cv_queue_empty.notify_all();
   }
