@@ -11,7 +11,6 @@
 #include <shared_mutex>
 #include <thread>
 
-
 template<typename T>
 class BoundedBlockingQueue
 {
@@ -20,6 +19,14 @@ public:
       : m_capacity(capacity)
   {}
 
+  BoundedBlockingQueue(BoundedBlockingQueue&& other)
+      : BoundedBlockingQueue(other.capacity)
+  {
+    std::unique_lock lock{ m_consumers_mtx };
+    m_data = std::move(other.m_data);
+  }
+
+  BoundedBlockingQueue(const BoundedBlockingQueue& other) = delete;
   ~BoundedBlockingQueue() {}
 
   /**
@@ -63,7 +70,7 @@ public:
 
     m_cv_queue_empty.wait(lock, [&]() { return !m_data.empty(); });
 
-    T el{ std::move(m_data.front())};
+    T el{ std::move(m_data.front()) };
     m_data.pop();
     m_cv_queue_overflow.notify_all();
     return el;

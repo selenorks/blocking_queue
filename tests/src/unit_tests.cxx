@@ -334,6 +334,8 @@ public:
   }
   TestObject(TestObject&& other)
   {
+    if(other.n ==3)
+      throw std::bad_alloc();
     move_counter++;
     this->n = other.n;
     other.n = -1;

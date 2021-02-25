@@ -17,8 +17,17 @@ class RingQueue
   typedef uint16_t index_t;
 
 public:
-  RingQueue() { static_assert(SIZE % 2 == 0, "buffer size is not a power of 2"); }
+  RingQueue() noexcept { static_assert(SIZE % 2 == 0, "buffer size is not a power of 2"); }
 
+  RingQueue(RingQueue&& other)
+  {
+    std::unique_lock lock(other.m_data_mutex);
+    m_data = std::move(other.m_data);
+    m_start_pos = other.m_start_pos;
+    m_end_pos = other.m_end_pos;
+  }
+
+  RingQueue(const RingQueue& other) = delete;
   ~RingQueue() { reset(); }
   /**
    * The function must be called once before using the queue
@@ -41,15 +50,13 @@ public:
    */
   bool add(T&& element) noexcept
   {
-    std::unique_lock lock(m_data_mutex, std::defer_lock);
-    if (!lock.try_lock())
-      return false;
+    std::unique_lock lock(m_data_mutex);
 
     if (full())
       return false;
 
     index_t pos = m_end_pos++ & m_mask;
-    new (get(pos)) T(std::move(element));
+    new (get(pos)) T(std::forward<T>(element));
     return true;
   }
 
@@ -84,7 +91,7 @@ public:
     T* obj = get(pos);
     T v{ std::move(*obj) };
     obj->~T();
-    return {std::move(v)};
+    return { std::move(v) };
   }
 
   bool empty() const noexcept
@@ -101,7 +108,7 @@ public:
     return (delta & mask) != 0;
   }
 
-  void reset()
+  void reset() noexcept
   {
     std::unique_lock lock(m_data_mutex);
 
@@ -113,7 +120,7 @@ public:
     m_end_pos = 0;
   }
 
-  //  size_t capacity() const { return m_capacity; }
+  size_t capacity() const { return m_capacity; }
 
 private:
   T* get(index_t index) noexcept { return ((T*)&(m_data[index].blocks)); }
