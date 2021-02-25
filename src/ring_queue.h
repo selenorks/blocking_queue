@@ -19,6 +19,7 @@ class RingQueue
 public:
   RingQueue() { static_assert(SIZE % 2 == 0, "buffer size is not a power of 2"); }
 
+  ~RingQueue() { reset(); }
   /**
    * The function must be called once before using the queue
    * @return false if queue is failed to allocate buffer
@@ -48,7 +49,7 @@ public:
       return false;
 
     index_t pos = m_end_pos++ & m_mask;
-    get(pos) = std::move(element);
+    new (get(pos)) T(std::move(element));
     return true;
   }
 
@@ -67,7 +68,7 @@ public:
       return false;
 
     index_t pos = m_end_pos++ & m_mask;
-    get(pos) = element;
+    new(get(pos)) T(element);
     return true;
   }
   /**
@@ -84,7 +85,10 @@ public:
       return {};
 
     index_t pos = m_start_pos++ & m_mask;
-    return { std::move(get(pos)) };
+    T* obj = get(pos);
+    std::optional<T> v{ std::move(*obj)};
+    obj->~T();
+    return std::move(v);
   }
 
   bool empty() const noexcept
@@ -104,6 +108,11 @@ public:
   void reset()
   {
     std::unique_lock lock(m_data_mutex);
+
+    while (m_start_pos != m_end_pos) {
+      get(m_start_pos++)->~T();
+    }
+
     m_start_pos = 0;
     m_end_pos = 0;
   }
@@ -111,7 +120,7 @@ public:
   //  size_t capacity() const { return m_capacity; }
 
 private:
-  T& get(index_t index) noexcept { return *((T*)&(m_data[index].blocks)); }
+  T* get(index_t index) noexcept { return ((T*)&(m_data[index].blocks)); }
   struct ElementBlock
   {
     uint8_t blocks[sizeof(T)];

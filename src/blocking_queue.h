@@ -11,6 +11,7 @@
 #include <shared_mutex>
 #include <thread>
 
+
 template<typename T>
 class BoundedBlockingQueue
 {
@@ -47,7 +48,7 @@ public:
     std::unique_lock lock{ m_consumers_mtx };
     m_cv_queue_overflow.wait(lock, [&]() { return !full(); });
 
-    m_data.add(std::move(element));
+    m_data.push(std::move(element));
     lock.unlock();
     m_cv_queue_empty.notify_all();
   }
@@ -59,9 +60,10 @@ public:
   T take()
   {
     std::unique_lock lock{ m_consumers_mtx };
+
     m_cv_queue_empty.wait(lock, [&]() { return !m_data.empty(); });
 
-    const T el = m_data.front();
+    T el{ std::move(m_data.front())};
     m_data.pop();
     m_cv_queue_overflow.notify_all();
     return el;

@@ -244,7 +244,7 @@ TEST(RingQueue, BoundedBlockingQueue)
 TEST(MultiThread, RingQueue)
 {
   constexpr int max_size = 8;
-  int element_count = 1024*1024;
+  int element_count = 1024 * 1024;
   int producer_count = 4;
   int consumer_count = 5;
 
@@ -253,7 +253,8 @@ TEST(MultiThread, RingQueue)
 
   auto producer = [&](int begin, int end) {
     for (; begin < end; begin++) {
-      while (!queue.add(begin));
+      while (!queue.add(begin))
+        ;
     }
   };
 
@@ -274,16 +275,13 @@ TEST(MultiThread, RingQueue)
   auto consumer = [&](int chunk_size) {
     std::vector<int> data;
     while (chunk_size--) {
-      while (true)
-      {
+      while (true) {
         auto r = queue.take();
-        if(r.has_value())
-        {
+        if (r.has_value()) {
           data.push_back(r.value());
           break;
         }
       }
-
     }
 
     std::unique_lock lock(grabbed_data_mutex);
@@ -316,4 +314,64 @@ TEST(MultiThread, RingQueue)
   for (int i = 0; i < element_count; i++) {
     EXPECT_EQ(i, grabbed_data[i]);
   }
+}
+
+class TestInt
+{
+public:
+  TestInt(int n)
+      : n(n)
+  {
+    printf("%d Test()\n", n);
+  }
+  TestInt(const TestInt& other)
+  {
+    this->n = other.n;
+    printf("%d TestInt(const TestInt& other)\n", n);
+  }
+  TestInt(TestInt&& other)
+  {
+    this->n = other.n;
+    other.n = -1;
+
+    printf("%d TestInt(const TestInt&& other) \n", n);
+  }
+  TestInt& operator=(TestInt&& other)
+  {
+    this->n = other.n;
+    other.n = -1;
+    printf("%d operator=(TestInt&& other)\n", n);
+    return *this;
+  }
+  ~TestInt() { printf("%d ~Test()\n", n); }
+
+private:
+  int n = 0;
+};
+
+TEST(Copy, RingQueue)
+{
+  BoundedBlockingQueue<TestInt> queue;
+  {
+    TestInt a(1);
+    queue.add(std::move(a));
+  }
+
+  printf("-------\n");
+  const TestInt& obj= queue.take();
+  printf("-------\n");
+
+//  RingQueue<TestInt, 8> queue;
+//  queue.init();
+//
+//  TestInt a(1);
+//  //  , b(2);
+//  queue.add(std::move(a));
+//  printf("-------\n");
+//  auto v = queue.take();
+//  printf("-------\n");
+//  v.reset();
+//  queue.add(a);
+  //    queue.add(b);
+  //  TestInt b = std::move(a);
 }
